@@ -1,0 +1,92 @@
+
+name: hello world from gh actions
+on: push
+
+jobs:
+  container_image:
+    name: build container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: docker/setup-buildx-action@v2
+      - uses: docker/build-push-action@v2
+        with:
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+  build:
+    name: build job
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9"]
+
+    steps:
+      - uses: actions/checkout@v1
+        # we can have comments!!!
+      - name: set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: build a wheel
+        run: |
+          pip install --upgrade pip build
+          python -m build
+      - name: upload our artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheel
+          path: dist/
+
+  test:
+    needs: build
+    name: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: download wheel
+        uses: actions/download-artifact@v3
+        with:
+          name: wheel
+          path: .
+      - name: set up dependencies
+        run: |
+          pip install pytest mypy
+          pip install *.whl
+      - name: Type checking
+        run: |
+          mypy src/
+      - name: Unit Tests
+        run: |
+          pytest
+
+
+#---
+#
+#
+#{
+#  'name': 'hello world from gh actions',
+#  'on': 'push'
+#  'jobs': {
+#      'build': {
+#          'name': 'build job'
+#          'runs-on': 'ubuntu-latest'
+#          'steps': [{
+#              'uses': 'actions/checkout@v1'
+#          }, {
+#              'name': 'print hello world',
+#              'run': "
+#                echo "hello world
+#              "
+#          }]
+#      }
+#  }
+#}
